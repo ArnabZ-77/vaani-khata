@@ -41,7 +41,7 @@ probs.forEach((p, i) => {
 
 // 3. How it works
 s = base("Talk to it like you talk to your helper");
-const steps = [["Speak", "Tap once. \"Ramesh ne 500 rupaye udhaar liye.\""], ["Whisper on NPU", "AI Hub Whisper-Base, Hexagon NPU via QNN"], ["Understand", "Entry type, person, amount, item, spoken in Hindi or English"], ["Khata", "Local SQLite. Balances update; ask \"Ramesh ka kitna baaki?\""]];
+const steps = [["Speak", "Tap once. \"Ramesh ne 500 rupaye udhaar liye.\""], ["Whisper on NPU", "AI Hub Whisper-Small, Hexagon NPU via QNN"], ["Understand", "Entry type, person, amount, item, spoken in Hindi or English"], ["Khata", "Local SQLite. Balances update; ask \"Ramesh ka kitna baaki?\""]];
 steps.forEach((p, i) => {
   const x = 0.5 + i * 2.32;
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 1.6, w: 2.1, h: 2.3, fill: { color: i === 1 ? ACC : CARD }, rectRadius: 0.1 });
@@ -53,17 +53,17 @@ txt(s, "Auto-detects Hindi vs English. Hindi and English spellings of one name (
 
 // 4. Why NPU - chart + stats
 s = base("Why the NPU: measured on this laptop");
-s.addChart(pres.charts.BAR, [{ name: "Encoder latency, 30 s audio (ms)", labels: ["Hexagon NPU (fp16)", "Oryon CPU (fp32)"], values: [45, 1030] }], {
+s.addChart(pres.charts.BAR, [{ name: "Encoder latency, 30 s audio (ms)", labels: ["Hexagon NPU (fp16)", "Oryon CPU (fp32)"], values: [115, 5700] }], {
   x: 0.5, y: 1.4, w: 5.2, h: 3.4, barDir: "bar", chartColors: [ACC], showValue: true, dataLabelColor: WHITE, dataLabelFontSize: 13, dataLabelPosition: "outEnd",
   catAxisLabelColor: "D8D8DE", catAxisLabelFontSize: 13, valAxisHidden: true, valGridLine: { style: "none" }, catGridLine: { style: "none" },
-  showLegend: false, showTitle: true, title: "Whisper-Base encoder latency (ms, lower is better)", titleColor: "D8D8DE", titleFontSize: 12,
+  showLegend: false, showTitle: true, title: "Whisper-Small encoder latency, 30 s audio (ms, lower is better)", titleColor: "D8D8DE", titleFontSize: 12,
 });
-[["~23x", "faster than CPU (typical of 5 runs; 6.6x in the slowest outlier run)"], ["45x", "real-time: a 10.8 s spoken clip transcribed end to end in ~240 ms"], ["0 bytes", "of audio or ledger data leave the device"]].forEach((p, i) => {
+[["~50x", "faster than the CPU (48.6x and 50.9x in two runs; NPU steady at ~115 ms)"], ["16x", "real-time: a 10.8 s spoken clip transcribed end to end in ~0.65 s"], ["0 bytes", "of audio or ledger data leave the device"]].forEach((p, i) => {
   const y = 1.4 + i * 1.15;
   txt(s, p[0], { x: 6.0, y, w: 3.5, h: 0.6, fontFace: H, fontSize: 32, bold: true, color: i === 2 ? GREEN : ACC });
   txt(s, p[1], { x: 6.0, y: y + 0.6, w: 3.5, h: 0.5, fontSize: 12, color: "C4C4CC" });
 });
-txt(s, "Baseline: open whisper-base encoder (same architecture) on the ONNX Runtime CPU EP. Full runs in docs/benchmark.md.", { x: 0.5, y: 4.95, w: 9, h: 0.35, fontSize: 10.5, color: MUTE });
+txt(s, "Baseline: open whisper-small encoder (same architecture) on the ONNX Runtime CPU EP. Full runs and caveats in docs/benchmark.md.", { x: 0.5, y: 4.95, w: 9, h: 0.35, fontSize: 10.5, color: MUTE });
 
 // 5. Product
 s = base("The working app");
@@ -76,28 +76,28 @@ s.addImage({ path: path.join(ROOT, "docs", "img", "app.png"), x: 0.5, y: 1.3, w:
 
 // 6. Deployment & accessibility
 s = base("Built to actually be deployed", false);
-const cols = [["Runs where shops are", "Any Snapdragon X Windows laptop. One setup script downloads the AI Hub model. No GPU, no cloud, no monthly bill."], ["Accessible by voice", "Hindi and English today. No typing, no menus. The same NPU model family scales to more Indian languages."], ["Private by design", "Server binds to 127.0.0.1. Data lives in one SQLite file on the shopkeeper's own machine."]];
+const cols = [["Runs where shops are", "Any Snapdragon X Windows laptop. One setup script downloads the AI Hub model. No GPU, no cloud, no monthly bill."], ["Accessible by voice", "Hindi, English and Hinglish today. No typing, no menus. Hindi and English spellings of a name merge into one customer."], ["Private by design", "Server binds to 127.0.0.1. Data lives in one SQLite file on the shopkeeper's own machine."]];
 cols.forEach((p, i) => {
   const x = 0.5 + i * 3.05;
   s.addShape(pres.shapes.ROUNDED_RECTANGLE, { x, y: 1.5, w: 2.85, h: 2.6, fill: { color: "F3F1EC" }, rectRadius: 0.1 });
   txt(s, p[0], { x: x + 0.2, y: 1.7, w: 2.45, h: 0.7, fontFace: H, fontSize: 18, bold: true, color: INK });
   txt(s, p[1], { x: x + 0.2, y: 2.45, w: 2.45, h: 1.6, fontSize: 13, color: "3A3A42" });
 });
-txt(s, "Next: Llama 3.2 3B on the NPU for free-form sentences, GST-ready sales summaries, and more languages with Whisper-Small.", { x: 0.5, y: 4.4, w: 9, h: 0.7, fontSize: 15, color: INK });
+txt(s, "Next: Llama 3.2 3B on the NPU for free-form sentences, GST-ready sales summaries, and more Indian languages.", { x: 0.5, y: 4.4, w: 9, h: 0.7, fontSize: 15, color: INK });
 
 // 7. Honest status
 s = base("What is real today");
 txt(s, "Working, measured on-device", { x: 0.5, y: 1.4, w: 4.3, h: 0.4, fontSize: 16, bold: true, color: GREEN });
 txt(s, [
-  { text: "Whisper-Base encoder + decoder on the Hexagon NPU (QNN)", options: { bullet: true, breakLine: true } },
+  { text: "Whisper-Small encoder + decoder on the Hexagon NPU (QNN)", options: { bullet: true, breakLine: true } },
   { text: "Speech to ledger entries, balances, spoken balance queries", options: { bullet: true, breakLine: true } },
-  { text: "Hindi/English name merging, offline operation", options: { bullet: true, breakLine: true } },
+  { text: "Hindi and Hinglish speech: 6 of 6 test sentences correct (Whisper-Base: 2 of 6)", options: { bullet: true, breakLine: true } },
   { text: "Reproducible benchmark script and logged results", options: { bullet: true } },
 ], { x: 0.5, y: 1.9, w: 4.3, h: 2.6, fontSize: 14, color: "D8D8DE", paraSpaceAfter: 8 });
 txt(s, "Known limits", { x: 5.2, y: 1.4, w: 4.3, h: 0.4, fontSize: 16, bold: true, color: ACC });
 txt(s, [
   { text: "Sentence parsing is rule-based, so unusual phrasing can be missed", options: { bullet: true, breakLine: true } },
-  { text: "Whisper-Base accuracy drops on noisy shops and heavy accents", options: { bullet: true, breakLine: true } },
+  { text: "Hindi tested only with synthetic voices; real shop noise and accents will be harder", options: { bullet: true, breakLine: true } },
   { text: "CPU baseline is the same architecture from an open ONNX export, not the identical file", options: { bullet: true } },
 ], { x: 5.2, y: 1.9, w: 4.3, h: 2.6, fontSize: 14, color: "D8D8DE", paraSpaceAfter: 8 });
 txt(s, "Vaani Khata: private, instant voice bookkeeping, powered by the Snapdragon NPU.", { x: 0.5, y: 4.75, w: 9, h: 0.5, fontFace: H, fontSize: 16, bold: true, color: ACC });

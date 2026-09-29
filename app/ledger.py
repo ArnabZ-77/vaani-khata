@@ -9,9 +9,9 @@ import time
 
 DEV_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
 
-CREDIT = ["credit", "udhaar", "udhar", "उधार", "उधर", "borrowed", "owes", "owe me", "baaki likh", "बाकी लिख"]
+CREDIT = ["credit", "udhaar", "udhar", "उधार", "उधर", "उदार", "उद्धार", "borrowed", "owes", "owe me", "baaki likh", "बाकी लिख"]
 PAYMENT = ["paid", "pay ", "returned", "gave back", "cleared", "repaid", "deposited", "settled", "wapas", "वापस",
-           "chukaye", "chukaya", "चुकाए", "चुकाया", "जमा", "दिए", "diye", "de diye", "लौटाए", "received from", "payment"]
+           "chukaye", "chukaya", "चुकाए", "चुकाया", "जमा", "दिए", "दिये", "diye", "de diye", "लौटाए", "received from", "payment"]
 SALE = ["sold", "bech", "becha", "बेचा", "बेचे", "बेच", "sale"]
 QUERY = ["how much", "kitna", "कितना", "कितने", "balance", "what does", "what is", "kitne", "hisab", "हिसाब"]
 
@@ -41,6 +41,9 @@ def _amount(s: str):
 def _person(s: str):
     m = re.search(r"([ऀ-ॿ]+)\s+(?:ने|को|से|का|की|के)(?=\s|$)", s)
     if m and m.group(1) not in ("मैंने", "ये", "वो"):
+        return m.group(1)
+    m = re.search(r"([ऀ-ॿ]{2,}?)(?:ने|को)(?=\s|$)", s)  # particle glued to the name: सूनीताने
+    if m:
         return m.group(1)
     for m in re.finditer(r"\b(?:to|from|by|for|of)\s+([A-Z][a-z]+)|\b([A-Z][a-z]+)\b(?=\s+(?:ne|ko|se|ka|ki|took|paid|owes|gave|bought|has|returned|cleared))", s):
         name = m.group(1) or m.group(2)
@@ -102,7 +105,7 @@ def _has(s: str, words):
 def parse(transcript: str):
     """Returns a list of dicts: {kind, person, amount, item, qty, source}."""
     entries = []
-    for sent in re.split(r"[.।?!\n]+|\s+and then\s+", _norm(transcript)):
+    for sent in re.split(r"[.।?!\n]+|\s+and then\s+|\s+(?:और|aur|and)\s+", _norm(transcript)):
         sent = sent.strip()
         if not sent:
             continue

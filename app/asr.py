@@ -14,12 +14,14 @@ import onnxruntime_qnn as qnn
 from tokenizers import Tokenizer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_DIR = glob.glob(os.path.join(ROOT, "models", "whisper_base", "*"))[0]
+DEFAULT_MODEL = os.environ.get("WHISPER_MODEL", "whisper_small")
 
 SR, N_FFT, HOP, N_MELS, CHUNK = 16000, 400, 160, 80, 30
-SOT, EOT, TRANSCRIBE, NO_TS = 50258, 50257, 50359, 50363
+SOT, EOT, TRANSCRIBE, NO_TS, SOT_PREV = 50258, 50257, 50359, 50363, 50361
+# Priming text steers Hindi output into Devanagari (Whisper otherwise often emits Urdu script for Hindustani).
+HI_PROMPT = "रमेश ने 500 रुपये उधार लिए।"
 LANGS = {"en": 50259, "hi": 50276}  # english, hindi
-N_LAYERS, SELF_LEN = 6, 199
+SELF_LEN = 199
 
 _registered = False
 
@@ -54,11 +56,18 @@ def log_mel(audio: np.ndarray) -> np.ndarray:
 
 
 class Whisper:
-    def __init__(self):
+    def __init__(self, model: str = DEFAULT_MODEL):
+        import json
+        self.model = model
+        model_dir = glob.glob(os.path.join(ROOT, "models", model, "*"))[0]
+        self.model_dir = model_dir
+        dec_in = json.load(open(os.path.join(model_dir, "metadata.json")))["model_files"]["decoder.onnx"]["inputs"]
+        self.n_layers = sum(k.startswith("k_cache_self") for k in dec_in)
+        self.heads, _, self.head_dim, _ = dec_in["k_cache_self_0_in"]["shape"]
         so = _npu_options()
         t = time.time()
-        self.enc = ort.InferenceSession(os.path.join(MODEL_DIR, "encoder.onnx"), sess_options=so)
-        self.dec = ort.InferenceSession(os.path.join(MODEL_DIR, "decoder.onnx"), sess_options=so)
+        self.enc = ort.InferenceSession(os.path.join(model_dir, "encoder.onnx"), sess_options=so)
+        self.dec = ort.InferenceSession(os.path.join(model_dir, "decoder.onnx"), sess_options=so)
         self.load_s = time.time() - t
         self.tok = Tokenizer.from_file(os.path.join(ROOT, "models", "tokenizer.json"))
         suppress = [i for i in range(50257, 51865)]  # all special tokens except we allow EOT below
@@ -75,9 +84,9 @@ class Whisper:
         t_enc = time.time()
 
         selfc = {}
-        for i in range(N_LAYERS):
-            selfc[f"k_cache_self_{i}_in"] = np.zeros((8, 1, 64, SELF_LEN), np.float16)
-            selfc[f"v_cache_self_{i}_in"] = np.zeros((8, 1, SELF_LEN, 64), np.float16)
+        for i in range(self.n_layers):
+            selfc[f"k_cache_self_{i}_in"] = np.zeros((self.heads, 1, self.head_dim, SELF_LEN), np.float16)
+            selfc[f"v_cache_self_{i}_in"] = np.zeros((self.heads, 1, SELF_LEN, self.head_dim), np.float16)
         mask = np.full((1, 1, 1, SELF_LEN + 1), -100.0, np.float16)
         mask[..., -1] = 0
 
@@ -88,13 +97,16 @@ class Whisper:
             out = self.dec.run(None, feed)
             names = [o.name for o in self.dec.get_outputs()]
             res = dict(zip(names, out))
-            for i in range(N_LAYERS):
+            for i in range(self.n_layers):
                 selfc[f"k_cache_self_{i}_in"] = res[f"k_cache_self_{i}_out"]
                 selfc[f"v_cache_self_{i}_in"] = res[f"v_cache_self_{i}_out"]
             mask[..., -(pos + 2)] = 0
             return res["logits"].reshape(-1).astype(np.float32)
 
         pos = 0
+        if language == "hi":
+            for tk in [SOT_PREV] + self.tok.encode(" " + HI_PROMPT, add_special_tokens=False).ids:
+                step(tk, pos); pos += 1
         logits = step(SOT, pos); pos += 1
         if language is None:
             cand = np.array(list(LANGS.values()))
