@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vaani Khata</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1b1b1f;--mute:#6b6b76;--line:#e6e2d8;--acc:#d6541f;--ok:#1f8a4c;--warn:#b42318;--chip:#efece3}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1e1e22;--ink:#f1f0ec;--mute:#9a9aa6;--line:#2c2c33;--acc:#ff7a45;--ok:#4cc38a;--warn:#ff7b72;--chip:#2a2a30}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-size:22px;margin:0}h1 small{display:block;font-size:13px;font-weight:400;color:var(--mute)}
+.badges{display:flex;gap:8px;flex-wrap:wrap}.chip{background:var(--chip);border-radius:99px;padding:4px 10px;font-size:12.5px}
+.chip.on{color:var(--ok);font-weight:600}.chip.off{color:var(--warn);font-weight:600}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:0 0 10px}
+#mic{width:100%;padding:18px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:17px;font-weight:600;cursor:pointer}
+#mic.rec{background:var(--warn);animation:p 1s infinite}@keyframes p{50%{opacity:.7}}
+#mic:disabled{opacity:.5}
+.row{display:flex;gap:8px;margin-top:10px}select,input{flex:1;padding:9px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit}
+button.s{padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+#tx{min-height:54px;font-size:17px;margin-top:12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.stat{background:var(--chip);border-radius:10px;padding:8px;text-align:center}
+.stat b{display:block;font-size:18px}.stat span{font-size:11.5px;color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line)}th{color:var(--mute);font-weight:500;font-size:12px}
+.bal{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)}.owe{color:var(--warn);font-weight:600}.adv{color:var(--ok);font-weight:600}
+.k-credit{color:var(--warn)}.k-payment{color:var(--ok)}.k-sale{color:var(--acc)}
+#ans{margin-top:10px;font-weight:600}.hint{color:var(--mute);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Vaani Khata <small>Speak your shop's ledger. Runs 100% on your Snapdragon NPU. No cloud.</small></h1>
+  <div class="badges"><span class="chip" id="dev">…</span><span class="chip" id="net">…</span></div>
+</header>
+<div class="grid">
+  <section class="card">
+    <h2>Speak</h2>
+    <button id="mic">🎙  Tap to speak</button>
+    <div class="row"><select id="lang"><option value="auto">Auto language</option><option value="en">English</option><option value="hi">हिन्दी</option></select></div>
+    <div id="tx" class="hint">Try: “Ramesh ne 500 rupaye udhaar liye” · “Sunita paid 200 rupees” · “How much does Ramesh owe?”</div>
+    <div id="ans"></div>
+    <div class="stats">
+      <div class="stat"><b id="s_enc">–</b><span>encoder ms (NPU)</span></div>
+      <div class="stat"><b id="s_dec">–</b><span>decoder ms (NPU)</span></div>
+      <div class="stat"><b id="s_tot">–</b><span>total ms</span></div>
+      <div class="stat"><b id="s_x">–</b><span>× real-time</span></div>
+    </div>
+    <div class="row"><input id="typed" placeholder="or type a sentence…"><button class="s" id="send">Add</button></div>
+  </section>
+  <section class="card">
+    <h2>Balances (who owes you)</h2>
+    <div id="bals" class="hint">No entries yet.</div>
+    <div class="hint" style="margin-top:10px">Sales today: <b id="sales">₹0</b></div>
+    <div class="row"><button class="s" id="reset">Clear ledger</button></div>
+  </section>
+</div>
+<section class="card" style="margin-top:16px">
+  <h2>Ledger</h2>
+  <table><thead><tr><th>Type</th><th>Person</th><th>₹</th><th>Item</th><th>Heard</th></tr></thead><tbody id="rows"></tbody></table>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=n=>'₹'+Math.abs(n).toLocaleString('en-IN');
+function net(){const o=navigator.onLine;$('net').textContent=o?'Network: connected':'Offline mode ✓';$('net').className='chip '+(o?'':'on')}
+addEventListener('online',net);addEventListener('offline',net);net();
+function render(s){
+  $('dev').textContent=s.device;$('dev').className='chip on';
+  const b=Object.entries(s.balances);
+  $('bals').innerHTML=b.length?b.map(([p,v])=>`<div class="bal"><span>${p}</span><span class="${v>0?'owe':'adv'}">${v>0?'owes '+fmt(v):v<0?'advance '+fmt(v):'settled'}</span></div>`).join(''):'No entries yet.';
+  $('sales').textContent=fmt(s.sales_total);
+  $('rows').innerHTML=s.recent.map(r=>`<tr><td class="k-${r.kind}">${r.kind}</td><td>${r.person||'–'}</td><td>${r.amount??''}</td><td>${[r.qty,r.item].filter(Boolean).join(' ')}</td><td class="hint">${r.source}</td></tr>`).join('');
+  const st=s.stats||{};
+  if(st.total_ms){$('s_enc').textContent=Math.round(st.encoder_ms);$('s_dec').textContent=Math.round(st.decoder_ms);$('s_tot').textContent=Math.round(st.total_ms);$('s_x').textContent=(st.audio_s*1000/st.total_ms).toFixed(0)+'×'}
+}
+function show(r){
+  $('tx').textContent=r.text||'(nothing heard)';$('tx').className='';
+  $('ans').textContent=(r.answers||[]).map(a=>a.person?`${a.person} ${a.balance>0?'owes '+fmt(a.balance):a.balance<0?'has advance '+fmt(a.balance):'is settled'}`:'Which customer?').join(' · ');
+  render(r);
+}
+fetch('/api/state').then(r=>r.json()).then(render);
+$('send').onclick=async()=>{const t=$('typed').value.trim();if(!t)return;show(await (await fetch('/api/text',{method:'POST',body:JSON.stringify({text:t})})).json());$('typed').value=''};
+$('reset').onclick=async()=>render(await (await fetch('/api/reset',{method:'POST'})).json());
+
+// --- mic capture -> 16 kHz mono PCM16 ---
+let ctx,stream,proc,chunks=[],rec=false,srcRate=48000;
+function down(buf,from,to){const r=from/to,n=Math.floor(buf.length/r),o=new Int16Array(n);for(let i=0;i<n;i++){const a=Math.floor(i*r),b=Math.min(buf.length,Math.floor((i+1)*r));let s=0;for(let j=a;j<b;j++)s+=buf[j];const v=Math.max(-1,Math.min(1,s/(b-a)));o[i]=v*32767}return o}
+$('mic').onclick=async()=>{
+  if(!rec){
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+    ctx=new AudioContext();srcRate=ctx.sampleRate;const src=ctx.createMediaStreamSource(stream);
+    proc=ctx.createScriptProcessor(4096,1,1);chunks=[];proc.onaudioprocess=e=>chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    src.connect(proc);proc.connect(ctx.destination);rec=true;$('mic').classList.add('rec');$('mic').textContent='⏹  Listening… tap to stop (max 25 s)';
+    setTimeout(()=>{if(rec)$('mic').click()},25000);
+  }else{
+    rec=false;$('mic').classList.remove('rec');$('mic').disabled=true;$('mic').textContent='Transcribing on NPU…';
+    proc.disconnect();stream.getTracks().forEach(t=>t.stop());await ctx.close();
+    const all=new Float32Array(chunks.reduce((a,c)=>a+c.length,0));let o=0;chunks.forEach(c=>{all.set(c,o);o+=c.length});
+    const pcm=down(all,srcRate,16000);
+    const r=await fetch('/api/transcribe',{method:'POST',headers:{'X-Lang':$('lang').value},body:pcm.buffer});
+    show(await r.json());$('mic').disabled=false;$('mic').textContent='🎙  Tap to speak';
+  }
+};
+</script>
+</body>
+</html>

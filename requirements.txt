@@ -1,0 +1,6 @@
+onnxruntime>=1.30
+onnxruntime-qnn>=2.6
+numpy
+tokenizers
+soundfile
+onnx

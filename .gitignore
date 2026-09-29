@@ -1,0 +1,8 @@
+.venv/
+models/
+khata.sqlite3
+server.log
+__pycache__/
+tools/node_modules/
+tools/qa/
+tools/package*.json
