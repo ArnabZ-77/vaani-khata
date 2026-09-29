@@ -6,3 +6,6 @@ __pycache__/
 tools/node_modules/
 tools/qa/
 tools/package*.json
+gh_login.log
+*.log
+tools/hi_*.mp3
